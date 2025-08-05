@@ -1,0 +1,129 @@
+
+import os
+len(os.listdir('COVID-19_Radiography_Dataset/COVID/images'))
+3616
+ 
+len(os.listdir('COVID-19_Radiography_Dataset/Normal/images'))
+10192
+import cv2
+img = cv2.imread('COVID-19_Radiography_Dataset/Normal/images/Normal-10005.png')
+import matplotlib.pyplot as plt
+plt.imshow(img)
+<matplotlib.image.AxesImage at 0x21b8d9a4a60>
+
+img.shape
+(299, 299, 3)
+import pandas as pd
+import numpy as np
+df = pd.read_excel('COVID-19_Radiography_Dataset/COVID.metadata.xlsx')
+df.head()
+FILE NAME	FORMAT	SIZE	URL
+0	COVID-1	PNG	256*256	https://sirm.org/category/senza-categoria/covi...
+1	COVID-2	PNG	256*256	https://sirm.org/category/senza-categoria/covi...
+2	COVID-3	PNG	256*256	https://sirm.org/category/senza-categoria/covi...
+3	COVID-4	PNG	256*256	https://sirm.org/category/senza-categoria/covi...
+4	COVID-5	PNG	256*256	https://sirm.org/category/senza-categoria/covi...
+urls = os.listdir('COVID-19_Radiography_Dataset/COVID/images')
+path = "COVID-19_Radiography_Dataset/COVID/images/" + urls[0]
+path
+'COVID-19_Radiography_Dataset/COVID/images/COVID-1.png'
+ 
+def loadImages(path, urls, target):
+  images = []
+  labels = []
+  for i in range(len(urls)):
+    img_path = path + "/" + urls[i]
+    img = cv2.imread(img_path)
+    img = img / 255.0
+    #print(img_path)
+    # if we want to resize the images
+    img = cv2.resize(img, (100, 100))
+    images.append(img)
+    labels.append(target)
+  images = np.asarray(images)
+  return images, labels
+covid_path = "COVID-19_Radiography_Dataset/COVID/images"
+covidUrl = os.listdir(covid_path)
+covidImages, covidTargets = loadImages(covid_path, covidUrl, 1)
+len(covidUrl), len(covidImages)
+(3616, 3616)
+normal_path = "COVID-19_Radiography_Dataset/Normal/images"
+normal_urls = os.listdir(normal_path)
+normalImages, normalTargets = loadImages(normal_path, normal_urls, 0)
+# covidImages = np.asarray(covidImages)
+# normalImages = np.asarray(normalImages)
+covidImages.shape
+(3616, 100, 100, 3)
+normalImages.shape
+(10192, 100, 100, 3)
+data = np.r_[covidImages, normalImages]
+data.shape
+(13808, 100, 100, 3)
+targets = np.r_[covidTargets, normalTargets]
+targets.shape
+(13808,)
+# data = data / 255.0
+from sklearn.model_selection import train_test_split
+x_train, x_test, y_train, y_test = train_test_split(data, targets, test_size=0.25)
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
+model = Sequential([
+    Conv2D(32, 3, input_shape=(100,100,3), activation='relu'),
+    MaxPooling2D(),
+    Conv2D(16, 3, activation='relu'),
+    MaxPooling2D(),
+    Conv2D(16, 3, activation='relu'),
+    MaxPooling2D(),
+    Flatten(),
+    Dense(512, activation='relu'),
+    Dense(256, activation='relu'),
+    Dense(1, activation='sigmoid')
+])
+model.summary()
+Model: "sequential_1"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ conv2d_3 (Conv2D)           (None, 98, 98, 32)        896       
+                                                                 
+ max_pooling2d_3 (MaxPooling  (None, 49, 49, 32)       0         
+ 2D)                                                             
+                                                                 
+ conv2d_4 (Conv2D)           (None, 47, 47, 16)        4624      
+                                                                 
+ max_pooling2d_4 (MaxPooling  (None, 23, 23, 16)       0         
+ 2D)                                                             
+                                                                 
+ conv2d_5 (Conv2D)           (None, 21, 21, 16)        2320      
+                                                                 
+ max_pooling2d_5 (MaxPooling  (None, 10, 10, 16)       0         
+ 2D)                                                             
+                                                                 
+ flatten_1 (Flatten)         (None, 1600)              0         
+                                                                 
+ dense_2 (Dense)             (None, 512)               819712    
+                                                                 
+ dense_3 (Dense)             (None, 256)               131328    
+                                                                 
+ dense_4 (Dense)             (None, 1)                 257       
+                                                                 
+=================================================================
+Total params: 959,137
+Trainable params: 959,137
+Non-trainable params: 0
+_________________________________________________________________
+model.compile(optimizer='adam', loss=tf.keras.losses.BinaryCrossentropy(),metrics=['accuracy'])
+model.fit(x_train, y_train,batch_size=32,epochs=5,validation_data=(x_test, y_test))
+
+plt.plot(model.history.history['accuracy'], label = 'train accuracy')
+plt.plot(model.history.history['val_accuracy'],label = 'test_accuracy')
+plt.legend()
+plt.show()
+
+plt.plot(model.history.history['loss'], label = 'train loss')
+plt.plot(model.history.history['val_loss'],label = 'test_loss')
+plt.legend()
+plt.show()
+
+ 
